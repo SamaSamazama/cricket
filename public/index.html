@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <title>Live Cricket Scores</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <style>
+    body{font-family:system-ui,Arial,sans-serif;margin:0;background:#0b1220;color:#f2f5f7}
+    header{padding:14px 18px;background:#11192e}
+    .wrap{max-width:960px;margin:24px auto;padding:0 16px}
+    .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+    .card{background:#121a31;border:1px solid #243052;border-radius:12px;padding:16px;margin-bottom:14px}
+    .badge{display:inline-block;padding:2px 8px;border-radius:14px;background:#1c2a4d;font-size:12px}
+    .tiny{opacity:.8;font-size:12px}
+  </style>
+</head>
+<body>
+<header><h1>Live Cricket Scores</h1></header>
+<div class="wrap">
+  <div id="matches"></div>
+  <p class="tiny" id="status">Connecting…</p>
+</div>
+<script>
+const el = document.getElementById('matches');
+const statusEl = document.getElementById('status');
+
+function render(data){
+  const list = data?.matches || [];
+  if (!list.length) {
+    el.innerHTML = '<div class="card">No live matches</div>';
+    return;
+  }
+  el.innerHTML = list.map(m => {
+    const t1 = m.team1 || 'Team A';
+    const t2 = m.team2 || 'Team B';
+    return `
+      <div class="card">
+        <div class="grid">
+          <div>
+            <div class="badge">${m.status || 'Live'}</div>
+            <h3>${t1} vs ${t2}</h3>
+            <div class="tiny">${m.series || ''}</div>
+          </div>
+          <div>
+            <div>${t1}: ${m.score1 || '-'}</div>
+            <div>${t2}: ${m.score2 || '-'}</div>
+          </div>
+        </div>
+        <div class="tiny">${m.venue || ''}</div>
+      </div>
+    `;
+  }).join('');
+}
+
+// Fallback pull
+fetch('/api/score').then(r => r.json()).then(render).catch(()=>{});
+
+// Live updates via SSE
+const es = new EventSource('/events');
+es.addEventListener('hello', () => { statusEl.textContent = 'Connected'; });
+es.addEventListener('score', (e) => {
+  const data = JSON.parse(e.data);
+  render(data);
+  statusEl.textContent = 'Live • auto-updating';
+});
+es.onerror = () => { statusEl.textContent = 'Reconnecting…'; };
+</script>
+</body>
+</html>
